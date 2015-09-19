@@ -11,6 +11,10 @@ import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
@@ -18,8 +22,37 @@ import com.mysql.jdbc.PreparedStatement;
 import com.mysql.jdbc.jdbc2.optional.MysqlDataSource;
 import org.json.*;
 
+
 public class amberfetch {
 
+
+	private static final int FIRST_NAME = 1;
+	private static final int MIDDLE_NAME = 2;
+	private static final int LAST_NAME = 3;
+	private static final int AGE = 4;
+	private static final int SEX = 5;
+	private static final int RACE = 6;
+	private static final int AGENOW = 7;
+	private static final int IMAGE = 8;
+	private static final int BIRTHDATE = 9;
+	private static final int CASE_NUMBER = 10;
+	private static final int CASE_TYPE = 11;
+	private static final int CIRCUMSTANCE = 12;
+	private static final int EYE_COLOR = 13;
+	private static final int HAIR_COLOR = 14;
+	private static final int HEIGHT = 15;
+	private static final int WEIGHT = 16;
+	private static final int MISSING_CITY = 17;
+	private static final int MISSING_COUNTRY = 18;
+	private static final int MISSING_COUNTY = 19;
+	private static final int MISSING_PROVINCE = 20;
+	private static final int MISSING_STATE = 21;
+	private static final int MISSING_DATE = 22;
+	private static final int ORG_CONTACT_INFO = 23;
+	private static final int ORG_LOGO = 24;
+	private static final int ORG_NAME = 25;
+	
+	
 	static MysqlDataSource dataSource = new MysqlDataSource();
 	static Connection mysql_conn;
 	
@@ -88,33 +121,108 @@ public class amberfetch {
 		String middleName = person.getString("middleName");
 		String lastName = person.getString("lastName");
 		int age = person.getInt("age");
-		String sex = person.getString("sex");
-		String ageNow = person.getString("approxAge");
-		String birthDay = person.getString("birthDay");
+		String sex = person.has("sex")?person.getString("sex"):"";
+		int ageNow = person.has("sex")?person.getInt("approxAge"):0;
+		long birtdaySince1970 = 0;
+		if(person.has("birthDay")){
+			String birthDay = person.has("birthDay")?person.getString("birthDay"):"";
+			DateFormat format = new SimpleDateFormat("MMMM d, yyyy hh:mm:ss aaa", Locale.ENGLISH);
+			java.util.Date date;
+			try {
+				date = format.parse(birthDay);
+				birtdaySince1970 = date.getTime();
+			} catch (ParseException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+		}
 		
-		DateFormat format = new SimpleDateFormat("MMMM d, yyyy hh:mm:ss aaa", Locale.ENGLISH);
-		Date date = format.parse(birthDay);
-		long birtdaySince1970 = date.getTime();
 		
 		
 		int caseNumber = person.getInt("caseNumber");
-		String circumstance = person.getString("circumstance");
-		String eyeColor = person.getString("eyeColor");
-		String hairColor = person.getString("hairColor");
-		int height = person.getInt("height");
-		int weight = person.getInt("weight");
+		String circumstance = "";
+		if(person.has("circumstance")){
+			circumstance = person.has("circumstance")?person.getString("circumstance"):"";
+		}
+		
+		String eyeColor = "";
+		if(person.has("eyeColor")){
+			eyeColor = person.getString("eyeColor");
+		}
+		
+		String hairColor = "";
+		if(person.has("hairColor")){
+			hairColor = person.getString("hairColor");
+		}
+		
+		int height = 0;
+		if(person.has("height")){
+			height = person.getInt("height");;
+		}
+		
+		int weight = 0;
+		if(person.has("weight")){
+			weight = person.getInt("weight");
+		}
+		
+
 		String missingCity = person.getString("missingCity");
 		String missingCounty = person.getString("missingCounty");
 		String missingState = person.getString("missingState");
 		String missingCountry = person.getString("missingCountry");
-		String missingProvince = person.getString("missingProvince");
-		String missingDate = person.getString("missingDate");
-		String orgName = person.getString("orgName");
-		String orgContactInfo = person.getString("orgContactInfo");
-		String thumbnailUrl = person.getString("thumbnailUrl");
-		String orgLogo = person.getString("orgLogo");
-		String race = person.getString("race");
-		String caseType = person.getString("caseType");
+		
+		String missingProvince = "";
+		if(person.has("missingProvince")){
+			missingProvince = person.getString("missingProvince");
+		}
+		
+		
+		long missingDateSince1970 = 0;
+		if(person.has("missingDate")){
+			String missingDate = person.getString("missingDate");
+			String birthDay = person.has("missingDate")?person.getString("missingDate"):"";
+			DateFormat format = new SimpleDateFormat("MMMM d, yyyy hh:mm:ss aaa", Locale.ENGLISH);
+			java.util.Date date;
+			try {
+				date = format.parse(birthDay);
+				missingDateSince1970 = date.getTime();
+			} catch (ParseException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+		}
+		
+		String orgName = "";
+		if(person.has("orgName")){
+			orgName = person.getString("orgName");
+		}
+		
+		String orgContactInfo = "";
+		if(person.has("orgContactInfo")){
+			orgContactInfo = person.getString("orgContactInfo");
+		}
+		
+		String thumbnailUrl = "";
+		if(person.has("thumbnailUrl")){
+			thumbnailUrl = person.getString("thumbnailUrl");
+		}
+		
+
+		String orgLogo = "";
+		if(person.has("orgLogo")){
+			orgLogo = person.getString("orgLogo");
+		}
+		
+		String race = "";
+		if(person.has("race")){
+			race = person.getString("race");
+		}
+		
+		String caseType = "";
+		if(person.has("caseType")){
+			caseType = person.getString("caseType");
+		}
+		
 
 		try {
 			java.sql.PreparedStatement pstmt;
@@ -122,16 +230,15 @@ public class amberfetch {
 			ResultSet resultSet = stmt.executeQuery("select * from person where caseNumber = " + caseNumber);
 			if (!resultSet.isBeforeFirst() ) {    
 				//this case is not found meaning this is new person - add it to the db
-				String query = "INSERT INTO person(id,"
-						+ "firstName,"
+				String query = "INSERT INTO person(firstName,"
 						+ "middleName,"
 						+ "lastName,"
 						+ "age,"
 						+ "sex,"
 						+ "race,"
 						+ "ageNow,"
-						+ "thumbnailUrl,"
-						+ "birtdaySince1970,"
+						+ "image,"
+						+ "birthDay,"
 						+ "caseNumber,"
 						+ "caseType,"
 						+ "circumstance,"
@@ -147,10 +254,34 @@ public class amberfetch {
 						+ "missingDate,"
 						+ "orgContactInfo,"
 						+ "orgLogo,"
-						+ "orgName) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-				pstmt.setInt(1, null); // set input parameter 1
-			    pstmt.setString(2, "deptname"); // set input parameter 2
-			    pstmt.setString(3, "deptLocation"); // se
+						+ "orgName) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+				
+				pstmt = mysql_conn.prepareStatement(query);  
+				pstmt.setString(FIRST_NAME,firstName);
+				pstmt.setString(MIDDLE_NAME,middleName);
+				pstmt.setString(LAST_NAME,lastName);
+				pstmt.setInt(AGE,age);
+				pstmt.setString(SEX,sex);
+				pstmt.setString(RACE,race);
+				pstmt.setInt(AGENOW,ageNow);
+				pstmt.setString(IMAGE,thumbnailUrl);
+				pstmt.setLong(BIRTHDATE, birtdaySince1970);
+				pstmt.setInt(CASE_NUMBER,caseNumber);
+				pstmt.setString(CASE_TYPE,caseType);
+				pstmt.setString(CIRCUMSTANCE,circumstance);
+				pstmt.setString(EYE_COLOR,eyeColor);
+				pstmt.setString(HAIR_COLOR,hairColor);
+				pstmt.setInt(HEIGHT,height);
+				pstmt.setInt(WEIGHT,weight);
+				pstmt.setString(MISSING_CITY,missingCity);
+				pstmt.setString(MISSING_COUNTRY,missingCountry);
+				pstmt.setString(MISSING_COUNTY,missingCounty);
+				pstmt.setString(MISSING_PROVINCE,missingProvince);
+				pstmt.setString(MISSING_STATE,missingState);
+				pstmt.setLong(MISSING_DATE,missingDateSince1970);
+				pstmt.setString(ORG_CONTACT_INFO,orgContactInfo);
+				pstmt.setString(ORG_LOGO,orgLogo);
+				pstmt.setString(ORG_NAME,orgName);
 			      
 				pstmt = mysql_conn.prepareStatement(query);
 				pstmt.executeUpdate();
