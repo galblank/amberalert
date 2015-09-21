@@ -4,6 +4,9 @@ import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.CookieHandler;
+import java.net.CookieManager;
+import java.net.CookiePolicy;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.sql.Connection;
@@ -58,37 +61,42 @@ public class amberfetch {
 	
 	public static void main(String[] args)
 	{
+		CookieHandler.setDefault( new CookieManager( null, CookiePolicy.ACCEPT_ALL ) );
 		dataSource.setUser("galblank");
 		dataSource.setPassword("aB290377Ba");
 		dataSource.setServerName("ec2rds.csqar5t9wpws.us-east-1.rds.amazonaws.com");
 		dataSource.setDatabaseName("amberalert");
-		String response = excutePost("http://www.missingkids.com/missingkids/servlet/JSONDataServlet?action=publicSearch&searchLang=en_US&search=new&subjToSearch=child&missState=CA&missCountry=US&caseType=All&sex=All","");
+		String response = excutePost("http://www.missingkids.com/missingkids/servlet/JSONDataServlet?action=publicSearch&search=new&searchLang=en_US&subjToSearch=child&caseType=All&sex=All","");
 		try {
 			mysql_conn = dataSource.getConnection();
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		parseResponse(response);
+		
+		JSONObject obj = new JSONObject(response);
+		
+		int totalPages = obj.getInt("totalPages");
+		int currentPage = 1;
+		while(currentPage < totalPages){
+			JSONArray arrayOfPeople = obj.getJSONArray("persons");
+			for(int i=0;i<arrayOfPeople.length();i++){
+				JSONObject person = arrayOfPeople.getJSONObject(i);
+				String caseNumber = person.getString("caseNumber");
+				String orgPrefix = person.getString("orgPrefix");
+				System.out.println(person.toString());
+				response = excutePost("http://www.missingkids.com/missingkids/servlet/JSONDataServlet?action=childDetail&orgPrefix="+orgPrefix+"&caseNum="+caseNumber+"&seqNum=1","");
+				JSONObject detailedperson = new JSONObject(response);
+				JSONObject childBean = detailedperson.getJSONObject("childBean");
+				addPersonToDB(childBean);
+			}
+			currentPage++;
+			response = excutePost("http://www.missingkids.com/missingkids/servlet/JSONDataServlet?action=publicSearch&searchLang=en_US&subjToSearch=child&caseType=All&sex=All&goToPage="+currentPage,"");
+			obj = new JSONObject(response);
+		}
+		
 	}
 	
-	public static void parseResponse(String data){
-		JSONObject obj = new JSONObject(data);
-		JSONArray arrayOfPeople = obj.getJSONArray("persons");
-		
-		for(int i=0;i<arrayOfPeople.length();i++){
-			JSONObject person = arrayOfPeople.getJSONObject(i);
-			System.out.println(person.toString());
-			addPersonToDB(person);
-		}
-		 
-		try {
-			Connection conn = dataSource.getConnection();
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
 /*	{"lastName":"ABDEL-WAHED",
 	"missingCity":"PASADENA",
 	"approxAge":"",
@@ -118,11 +126,17 @@ public class amberfetch {
 	public static void addPersonToDB(JSONObject person)
 	{
 		String firstName = person.getString("firstName");
-		String middleName = person.getString("middleName");
+		String middleName = "";
+		if(person.has("middleName")){
+			middleName = person.getString("middleName");
+		}
 		String lastName = person.getString("lastName");
 		int age = person.getInt("age");
 		String sex = person.has("sex")?person.getString("sex"):"";
-		int ageNow = person.has("sex")?person.getInt("approxAge"):0;
+		String ageNow = "";
+		if(person.has("approxAge") && person.getString("approxAge").length() > 0){
+			ageNow = person.getString("approxAge");
+		}
 		long birtdaySince1970 = 0;
 		if(person.has("birthDay")){
 			String birthDay = person.has("birthDay")?person.getString("birthDay"):"";
@@ -138,8 +152,7 @@ public class amberfetch {
 		}
 		
 		
-		
-		int caseNumber = person.getInt("caseNumber");
+		String caseNumber = person.getString("caseNumber");
 		String circumstance = "";
 		if(person.has("circumstance")){
 			circumstance = person.has("circumstance")?person.getString("circumstance"):"";
@@ -169,7 +182,10 @@ public class amberfetch {
 		String missingCity = person.getString("missingCity");
 		String missingCounty = person.getString("missingCounty");
 		String missingState = person.getString("missingState");
-		String missingCountry = person.getString("missingCountry");
+		String missingCountry = "";
+		if(person.has("missingCountry")){
+			missingCountry = person.getString("missingCountry");
+		}
 		
 		String missingProvince = "";
 		if(person.has("missingProvince")){
@@ -225,10 +241,11 @@ public class amberfetch {
 		
 
 		try {
-			java.sql.PreparedStatement pstmt;
+			java.sql.PreparedStatement pstmt = null;
 			Statement stmt = mysql_conn.createStatement();
-			ResultSet resultSet = stmt.executeQuery("select * from person where caseNumber = " + caseNumber);
-			if (!resultSet.isBeforeFirst() ) {    
+			String seelctquery = "select * from person where caseNumber = '" + caseNumber + "'";
+			ResultSet resultSet = stmt.executeQuery(seelctquery);
+			if (!resultSet.next()) {    
 				//this case is not found meaning this is new person - add it to the db
 				String query = "INSERT INTO person(firstName,"
 						+ "middleName,"
@@ -238,7 +255,7 @@ public class amberfetch {
 						+ "race,"
 						+ "ageNow,"
 						+ "image,"
-						+ "birthDay,"
+						+ "birthDate,"
 						+ "caseNumber,"
 						+ "caseType,"
 						+ "circumstance,"
@@ -263,10 +280,10 @@ public class amberfetch {
 				pstmt.setInt(AGE,age);
 				pstmt.setString(SEX,sex);
 				pstmt.setString(RACE,race);
-				pstmt.setInt(AGENOW,ageNow);
+				pstmt.setString(AGENOW,ageNow);
 				pstmt.setString(IMAGE,thumbnailUrl);
 				pstmt.setLong(BIRTHDATE, birtdaySince1970);
-				pstmt.setInt(CASE_NUMBER,caseNumber);
+				pstmt.setString(CASE_NUMBER,caseNumber);
 				pstmt.setString(CASE_TYPE,caseType);
 				pstmt.setString(CIRCUMSTANCE,circumstance);
 				pstmt.setString(EYE_COLOR,eyeColor);
@@ -282,20 +299,20 @@ public class amberfetch {
 				pstmt.setString(ORG_CONTACT_INFO,orgContactInfo);
 				pstmt.setString(ORG_LOGO,orgLogo);
 				pstmt.setString(ORG_NAME,orgName);
-			      
-				pstmt = mysql_conn.prepareStatement(query);
+			  
 				pstmt.executeUpdate();
 			}
 			else{
 				//person exists in the DB
-				pstmt = mysql_conn.prepareStatement("UPDATE COFFEES " +
-                        "SET PRICE = ? " +
-                        "WHERE COF_NAME = ?");
+				System.out.println("person with case number " + caseNumber + "exists in DB");
 			}
-			resultSet.close();
+			if(resultSet != null){
+				resultSet.close();
+			}
 			
-			pstmt.close();
-			mysql_conn.close();
+			if(pstmt != null){
+				pstmt.close();
+			}
 		}
 		catch (SQLException e) {
 			// TODO Auto-generated catch block
@@ -305,6 +322,7 @@ public class amberfetch {
 	}
 	
 	public static String excutePost(String targetURL, String urlParameters) {
+		System.out.println(targetURL);
 		  HttpURLConnection connection = null;  
 		  try {
 		    //Create connection
@@ -314,10 +332,9 @@ public class amberfetch {
 		    connection.setRequestProperty("Content-Type","application/x-www-form-urlencoded");
 		    connection.setRequestProperty("Content-Length", Integer.toString(urlParameters.getBytes().length));
 		    connection.setRequestProperty("Content-Language", "en-US");  
-
 		    connection.setUseCaches(false);
 		    connection.setDoOutput(true);
-
+		    
 		    //Send request
 		    DataOutputStream wr = new DataOutputStream (
 		        connection.getOutputStream());
