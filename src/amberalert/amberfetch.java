@@ -10,7 +10,7 @@ import java.net.CookiePolicy;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.sql.Connection;
-import java.sql.Date;
+import java.util.Date;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -27,8 +27,6 @@ import org.json.*;
 
 
 public class amberfetch {
-
-
 	private static final int FIRST_NAME = 1;
 	private static final int MIDDLE_NAME = 2;
 	private static final int LAST_NAME = 3;
@@ -54,8 +52,8 @@ public class amberfetch {
 	private static final int ORG_CONTACT_INFO = 23;
 	private static final int ORG_LOGO = 24;
 	private static final int ORG_NAME = 25;
-	
-	
+	private static final int ORG_PREFIX = 26;
+	private static final int LAST_UPDATED = 27;
 	static MysqlDataSource dataSource = new MysqlDataSource();
 	static Connection mysql_conn;
 	
@@ -66,7 +64,9 @@ public class amberfetch {
 		dataSource.setPassword("aB290377Ba");
 		dataSource.setServerName("ec2rds.csqar5t9wpws.us-east-1.rds.amazonaws.com");
 		dataSource.setDatabaseName("amberalert");
-		String response = excutePost("http://www.missingkids.com/missingkids/servlet/JSONDataServlet?action=publicSearch&search=new&searchLang=en_US&subjToSearch=child&caseType=All&sex=All","");
+		int currentPage = 1;
+		
+		String response = excutePost("http://www.missingkids.com/missingkids/servlet/JSONDataServlet?action=publicSearch&search=new&searchLang=en_US&subjToSearch=child&caseType=All&sex=All&goToPage="+currentPage,"");
 		try {
 			mysql_conn = dataSource.getConnection();
 		} catch (SQLException e) {
@@ -77,7 +77,7 @@ public class amberfetch {
 		JSONObject obj = new JSONObject(response);
 		
 		int totalPages = obj.getInt("totalPages");
-		int currentPage = 1;
+		
 		while(currentPage < totalPages){
 			JSONArray arrayOfPeople = obj.getJSONArray("persons");
 			for(int i=0;i<arrayOfPeople.length();i++){
@@ -87,8 +87,10 @@ public class amberfetch {
 				System.out.println(person.toString());
 				response = excutePost("http://www.missingkids.com/missingkids/servlet/JSONDataServlet?action=childDetail&orgPrefix="+orgPrefix+"&caseNum="+caseNumber+"&seqNum=1","");
 				JSONObject detailedperson = new JSONObject(response);
-				JSONObject childBean = detailedperson.getJSONObject("childBean");
-				addPersonToDB(childBean);
+				if(detailedperson.has("childBean")){
+					JSONObject childBean = detailedperson.getJSONObject("childBean");
+					addPersonToDB(childBean);
+				}
 			}
 			currentPage++;
 			response = excutePost("http://www.missingkids.com/missingkids/servlet/JSONDataServlet?action=publicSearch&searchLang=en_US&subjToSearch=child&caseType=All&sex=All&goToPage="+currentPage,"");
@@ -222,11 +224,20 @@ public class amberfetch {
 		if(person.has("thumbnailUrl")){
 			thumbnailUrl = person.getString("thumbnailUrl");
 		}
+
+		if(person.has("photoMap")){
+			thumbnailUrl =  person.getString("photoMap");
+		}
 		
 
 		String orgLogo = "";
 		if(person.has("orgLogo")){
 			orgLogo = person.getString("orgLogo");
+		}
+		
+		String orgPrefix = "";
+		if(person.has("orgPrefix")){
+			orgPrefix = person.getString("orgPrefix");
 		}
 		
 		String race = "";
@@ -239,6 +250,7 @@ public class amberfetch {
 			caseType = person.getString("caseType");
 		}
 		
+		long todayInMilli = new Date().getTime();
 
 		try {
 			java.sql.PreparedStatement pstmt = null;
@@ -271,7 +283,9 @@ public class amberfetch {
 						+ "missingDate,"
 						+ "orgContactInfo,"
 						+ "orgLogo,"
-						+ "orgName) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+						+ "orgName,"
+						+ "orgPrefix,"
+						+ "lastupdate) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 				
 				pstmt = mysql_conn.prepareStatement(query);  
 				pstmt.setString(FIRST_NAME,firstName);
@@ -299,7 +313,8 @@ public class amberfetch {
 				pstmt.setString(ORG_CONTACT_INFO,orgContactInfo);
 				pstmt.setString(ORG_LOGO,orgLogo);
 				pstmt.setString(ORG_NAME,orgName);
-			  
+				pstmt.setString(ORG_PREFIX,orgPrefix);
+				pstmt.setDouble(LAST_UPDATED,todayInMilli);
 				pstmt.executeUpdate();
 			}
 			else{
