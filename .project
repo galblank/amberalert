@@ -17,7 +17,11 @@
 	<variableList>
 		<variable>
 			<name>mysqlconnector</name>
-			<value>file:/Users/galblank/Documents/workspace/amberalert/mysql-connector-java-5.1.36-bin.jar</value>
+			<value>file:/Users/galblank/Documents/workspace/amberalert/lib/mysql-connector-java-5.1.36-bin.jar</value>
+		</variable>
+		<variable>
+			<name>p12push</name>
+			<value>file:/Users/galblank/Documents/workspace/amberalert/lib/pushamber.p12</value>
 		</variable>
 	</variableList>
 </projectDescription>

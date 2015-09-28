@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.reflect.Array;
 import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
@@ -23,6 +24,9 @@ import java.util.concurrent.ExecutionException;
 
 import com.mysql.jdbc.PreparedStatement;
 import com.mysql.jdbc.jdbc2.optional.MysqlDataSource;
+import com.notnoop.apns.APNS;
+import com.notnoop.apns.ApnsService;
+
 import org.json.*;
 
 
@@ -95,6 +99,53 @@ public class amberfetch {
 			currentPage++;
 			response = excutePost("http://www.missingkids.com/missingkids/servlet/JSONDataServlet?action=publicSearch&searchLang=en_US&subjToSearch=child&caseType=All&sex=All&goToPage="+currentPage,"");
 			obj = new JSONObject(response);
+		}
+		
+		
+		response = excutePost("http://www.missingkids.com/missingkids/servlet/JSONDataServlet?action=amberAlert","");
+		//{"status":"success","type":"amberAlert","alertCount":0,"persons":[]}
+	
+		if(response != null){
+			JSONObject amberObject = new JSONObject(response);
+			int numberofAlerts = amberObject.getInt("alertCount");
+			JSONArray alerts = amberObject.getJSONArray("persons");
+			String [] alertsarray = new String[numberofAlerts];
+			for(int i = 0;i<numberofAlerts;i++){
+				JSONObject oneAlert = alerts.getJSONObject(i);
+				String firstName = oneAlert.getString("firstName");
+				String lastName = oneAlert.getString("lastName");
+				String missingCity = oneAlert.getString("missingCity");
+				String sendAlert = "Amber alert! " + firstName + " " + lastName + " is missing from " + missingCity;
+				alertsarray[i]=sendAlert;
+			}
+			
+			String selectquery = "select * from person";
+			ApnsService service = APNS.newService().withCert("/home/ec2-user/pushamber.p12", "123456").withSandboxDestination().build();	
+			
+			try {
+				Statement stmt = mysql_conn.createStatement();
+				ResultSet resultSet = stmt.executeQuery(selectquery);
+				while(resultSet.next()){
+					String token = resultSet.getString("apnskey");
+					for(int j=0;j<alertsarray.length;j++){
+						String alert = alertsarray[j];
+						String payload = APNS.newPayload().badge(1).alertBody(alert).sound("ambersound").build();
+						service.push(token, payload);
+					}
+					
+				}
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			/*
+			Thread thread = new Thread(){
+			    public void run(){
+			      System.out.println("Thread Running");
+			    }
+			  };
+
+			  thread.start();*/
 		}
 		
 	}
