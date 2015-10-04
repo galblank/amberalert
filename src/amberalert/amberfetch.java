@@ -119,7 +119,7 @@ public class amberfetch {
 				alertsarray[i]=sendAlert;
 			}
 			
-			String selectquery = "select * from person";
+			String selectquery = "select * from users";
 			ApnsService service = APNS.newService().withCert("/home/ec2-user/pushamber.p12", "123456").withSandboxDestination().build();	
 			
 			try {
@@ -127,6 +127,9 @@ public class amberfetch {
 				ResultSet resultSet = stmt.executeQuery(selectquery);
 				while(resultSet.next()){
 					String token = resultSet.getString("apnskey");
+					if(token == null || token.length() < 15){
+						continue;
+					}
 					for(int j=0;j<alertsarray.length;j++){
 						String alert = alertsarray[j];
 						String payload = APNS.newPayload().badge(1).alertBody(alert).sound("ambersound").build();
