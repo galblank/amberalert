@@ -83,17 +83,19 @@ public class amberfetch {
 		int totalPages = obj.getInt("totalPages");
 		
 		while(currentPage < totalPages){
-			JSONArray arrayOfPeople = obj.getJSONArray("persons");
-			for(int i=0;i<arrayOfPeople.length();i++){
-				JSONObject person = arrayOfPeople.getJSONObject(i);
-				String caseNumber = person.getString("caseNumber");
-				String orgPrefix = person.getString("orgPrefix");
-				System.out.println(person.toString());
-				response = excutePost("http://www.missingkids.com/missingkids/servlet/JSONDataServlet?action=childDetail&orgPrefix="+orgPrefix+"&caseNum="+caseNumber+"&seqNum=1","");
-				JSONObject detailedperson = new JSONObject(response);
-				if(detailedperson.has("childBean")){
-					JSONObject childBean = detailedperson.getJSONObject("childBean");
-					addPersonToDB(childBean);
+			if(obj.getJSONArray("persons") != null){
+				JSONArray arrayOfPeople = obj.getJSONArray("persons");
+				for(int i=0;i<arrayOfPeople.length();i++){
+					JSONObject person = arrayOfPeople.getJSONObject(i);
+					String caseNumber = person.getString("caseNumber");
+					String orgPrefix = person.getString("orgPrefix");
+					System.out.println(person.toString());
+					response = excutePost("http://www.missingkids.com/missingkids/servlet/JSONDataServlet?action=childDetail&orgPrefix="+orgPrefix+"&caseNum="+caseNumber+"&seqNum=1","");
+					JSONObject detailedperson = new JSONObject(response);
+					if(detailedperson.has("childBean")){
+						JSONObject childBean = detailedperson.getJSONObject("childBean");
+						addPersonToDB(childBean);
+					}
 				}
 			}
 			currentPage++;
