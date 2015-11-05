@@ -3,8 +3,10 @@
 	<classpathentry excluding="JSON-java/" kind="src" path="src"/>
 	<classpathentry kind="src" path="lib"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
-	<classpathentry kind="lib" path="/Users/galblank/Documents/workspace/amberalert/lib/json-20141113.jar"/>
-	<classpathentry kind="lib" path="/Users/galblank/Documents/workspace/amberalert/lib/mysql-connector-java-5.1.36-bin.jar"/>
-	<classpathentry kind="lib" path="/Users/galblank/Documents/workspace/amberalert/lib/apns-0.1.5-jar-with-dependencies.jar"/>
+	<classpathentry kind="lib" path="/Users/gal.blank/Documents/workspace/amberalert/lib/json-20141113.jar"/>
+	<classpathentry kind="lib" path="/Users/gal.blank/Documents/workspace/amberalert/lib/mysql-connector-java-5.1.36-bin.jar"/>
+	<classpathentry kind="lib" path="/Users/gal.blank/Documents/workspace/amberalert/lib/apns-0.1.5-jar-with-dependencies.jar"/>
+	<classpathentry kind="lib" path="lib/slf4j-simple-1.7.12.jar"/>
+	<classpathentry kind="lib" path="lib/JavaPNS_2.2.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

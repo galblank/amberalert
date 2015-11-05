@@ -26,6 +26,9 @@ import com.mysql.jdbc.PreparedStatement;
 import com.mysql.jdbc.jdbc2.optional.MysqlDataSource;
 import com.notnoop.apns.APNS;
 import com.notnoop.apns.ApnsService;
+import javapns.Push;
+import javapns.communication.exceptions.CommunicationException;
+import javapns.communication.exceptions.KeystoreException;
 
 import org.json.*;
 
@@ -61,6 +64,8 @@ public class amberfetch {
 	static MysqlDataSource dataSource = new MysqlDataSource();
 	static Connection mysql_conn;
 	
+	static boolean shouldNotifyAllAboutNewMissingKids = true;
+	
 	public static void main(String[] args)
 	{
 		CookieHandler.setDefault( new CookieManager( null, CookiePolicy.ACCEPT_ALL ) );
@@ -73,10 +78,16 @@ public class amberfetch {
 		String response = excutePost("http://www.missingkids.com/missingkids/servlet/JSONDataServlet?action=publicSearch&search=new&searchLang=en_US&subjToSearch=child&caseType=All&sex=All&goToPage="+currentPage,"");
 		try {
 			mysql_conn = dataSource.getConnection();
+			Statement selectstmt = mysql_conn.createStatement();
+			ResultSet selectresultSet = selectstmt.executeQuery("select * from settings");
+			while(selectresultSet.next()){
+				currentPage = selectresultSet.getInt("lastpage");
+			}
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		
 		
 		JSONObject obj = new JSONObject(response);
 		
@@ -103,6 +114,14 @@ public class amberfetch {
 			obj = new JSONObject(response);
 		}
 		
+		try {
+			Statement updatesettings = mysql_conn.createStatement();
+			updatesettings.executeUpdate("update settings set lastpage = " + currentPage);
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
 		
 		response = excutePost("http://www.missingkids.com/missingkids/servlet/JSONDataServlet?action=amberAlert","");
 		//{"status":"success","type":"amberAlert","alertCount":0,"persons":[]}
@@ -114,15 +133,26 @@ public class amberfetch {
 			String [] alertsarray = new String[numberofAlerts];
 			for(int i = 0;i<numberofAlerts;i++){
 				JSONObject oneAlert = alerts.getJSONObject(i);
-				String firstName = oneAlert.getString("firstName");
-				String lastName = oneAlert.getString("lastName");
-				String missingCity = oneAlert.getString("missingCity");
+				String firstName = "";
+				if(oneAlert.has("firstName")){
+					firstName = oneAlert.getString("firstName");
+				}
+				
+				String lastName = "";
+				if(oneAlert.has("lastName")){
+					lastName = oneAlert.getString("lastName");
+				}
+				
+				String missingCity = "";
+				if(oneAlert.has("missingCity")){
+					missingCity = oneAlert.getString("missingCity");
+				}
 				String sendAlert = "Amber alert! " + firstName + " " + lastName + " is missing from " + missingCity;
 				alertsarray[i]=sendAlert;
 			}
 			
 			String selectquery = "select * from users";
-			ApnsService service = APNS.newService().withCert("/home/ec2-user/pushamber.p12", "123456").withSandboxDestination().build();	
+			ApnsService service = APNS.newService().withCert("/home/ec2-user/pushamber.p12", "123456").withProductionDestination().build();	
 			
 			try {
 				Statement stmt = mysql_conn.createStatement();
@@ -137,7 +167,12 @@ public class amberfetch {
 						String payload = APNS.newPayload().badge(1).alertBody(alert).sound("ambersound").build();
 						service.push(token, payload);
 					}
-					
+					if(shouldNotifyAllAboutNewMissingKids == true){
+						String alert = "More children are missing, tap to see if you can help find them!";
+						String payload = APNS.newPayload().badge(1).alertBody(alert).sound("ambersound").build();
+						System.out.println("Pushing to " + token);
+						service.push(token, payload);
+					}
 				}
 			} catch (SQLException e) {
 				// TODO Auto-generated catch block
@@ -372,6 +407,7 @@ public class amberfetch {
 				pstmt.setString(ORG_PREFIX,orgPrefix);
 				pstmt.setDouble(LAST_UPDATED,todayInMilli);
 				pstmt.executeUpdate();
+				shouldNotifyAllAboutNewMissingKids = true;
 			}
 			else{
 				//person exists in the DB
