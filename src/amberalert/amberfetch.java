@@ -152,7 +152,7 @@ public class amberfetch {
 			}
 			
 			String selectquery = "select * from users";
-			ApnsService service = APNS.newService().withCert("/home/ec2-user/pushamber.p12", "123456").withProductionDestination().build();	
+			ApnsService service = APNS.newService().withCert("pushamber.p12", "123456").withProductionDestination().build();	
 			
 			try {
 				Statement stmt = mysql_conn.createStatement();
